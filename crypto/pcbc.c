@@ -14,6 +14,7 @@
  *
  */
 
+#include <crypto/algapi.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -72,7 +73,7 @@ static int crypto_pcbc_encrypt_inplace(struct skcipher_request *req,
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
 	u8 * const iv = walk->iv;
-	u8 tmpbuf[bsize];
+	u8 tmpbuf[MAX_CIPHER_BLOCKSIZE];
 
 	do {
 		memcpy(tmpbuf, src, bsize);
@@ -139,8 +140,13 @@ static int crypto_pcbc_decrypt_inplace(struct skcipher_request *req,
 	int bsize = crypto_cipher_blocksize(tfm);
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
+<<<<<<< HEAD
 	u8 * const iv = walk->iv;
 	u8 tmpbuf[bsize] __aligned(__alignof__(u32));
+=======
+	u8 *iv = walk->iv;
+	u8 tmpbuf[MAX_CIPHER_BLOCKSIZE] __aligned(__alignof__(u32));
+>>>>>>> 6650c4de681ee... crypto: remove several VLAs
 
 	do {
 		memcpy(tmpbuf, src, bsize);
