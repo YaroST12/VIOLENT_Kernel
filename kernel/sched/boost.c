@@ -214,6 +214,9 @@ static void sched_boost_disable_all(void)
 
 static void _sched_set_boost(int type)
 {
+	if (IS_ENABLED(CONFIG_CPU_INPUT_BOOST) || IS_ENABLED(CONFIG_DEVFREQ_BOOST))
+		return;
+
 	if (type == 0)
 		sched_boost_disable_all();
 	else if (type > 0)
