@@ -129,4 +129,5 @@ kernel/configs/android-*.cfg
 # Peepee doo doo
 /out
 /build
+/scripts/ufdt
 build.sh
