@@ -316,6 +316,7 @@ static int simple_lmk_init_set(const char *val, const struct kernel_param *kp)
 	if (cmpxchg(&init_done, false, true))
 		return 0;
 
+	pr_info("slmk initialised\n");
 	thread = kthread_run(simple_lmk_reclaim_thread, NULL, "simple_lmkd");
 	BUG_ON(IS_ERR(thread));
 
