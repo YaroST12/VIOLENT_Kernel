@@ -788,21 +788,7 @@
 			};
 		};
 
-		sde_dp_hotplug_ctrl: sde_dp_hotplug_ctrl {
-			mux {
-				pins = "gpio103";
-				function = "debug_hot";
-			};
-
-			config {
-				pins = "gpio103";
-				bias-disable;
-				input-enable;
-				drive-strength = <2>;
-			};
-		};
-
-		sde_dp_hotplug_tlmm: sde_dp_hotplug_tlmm {
+		sde_dp_hotplug_enable: sde_dp_hotplug_enable {
 			mux {
 				pins = "gpio103";
 				function = "gpio";
@@ -810,7 +796,7 @@
 
 			config {
 				pins = "gpio103";
-				bias-disable;
+				bias-pull-down;
 				input-enable;
 				drive-strength = <2>;
 			};
