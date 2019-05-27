@@ -731,7 +731,7 @@ static void write_default_values(struct cgroup_subsys_state *css)
 {
 	u8 i;
 	char cg_name[15];
-	int boost_values[3] = { 5, 0, 0 };
+	int boost_values[3] = { 5, 0, -25 };
 	bool prefer_idle_values[3] = { 1, 1, 0 };
 	bool sched_colocate_values[3] = { 0, 0, 1 };
 	bool sched_boost_no_override_values[3] = { 1, 1, 0 };
