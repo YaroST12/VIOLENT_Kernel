@@ -525,6 +525,9 @@ static ssize_t up_rate_limit_us_store(struct gov_attr_set *attr_set,
 	if (kstrtouint(buf, 10, &rate_limit_us))
 		return -EINVAL;
 
+	if (!strcmp(current->comm, "init"))
+		return count;
+
 	tunables->up_rate_limit_us = rate_limit_us;
 
 	list_for_each_entry(sg_policy, &attr_set->policy_list, tunables_hook) {
@@ -544,6 +547,9 @@ static ssize_t down_rate_limit_us_store(struct gov_attr_set *attr_set,
 
 	if (kstrtouint(buf, 10, &rate_limit_us))
 		return -EINVAL;
+
+	if (!strcmp(current->comm, "init"))
+		return count;
 
 	tunables->down_rate_limit_us = rate_limit_us;
 
@@ -795,6 +801,10 @@ static int sugov_init(struct cpufreq_policy *policy)
 				cpufreq_policy_transition_delay_us(policy);
 
 	tunables->iowait_boost_enable = false;
+
+	tunables->up_rate_limit_us = 500;
+	tunables->down_rate_limit_us = 5000;
+
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
 	stale_ns = sched_ravg_window + (sched_ravg_window >> 3);
