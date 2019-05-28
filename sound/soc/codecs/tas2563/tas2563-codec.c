@@ -2339,14 +2339,15 @@ static int tas2563_codec_probe(struct snd_soc_codec *codec)
 {
 	int ret;
 	struct tas2563_priv *pTAS2563 = snd_soc_codec_get_drvdata(codec);
-
-/*	ret = snd_soc_add_codec_controls(codec, tas2563_controls,
-					 ARRAY_SIZE(tas2563_controls));*/
+#if 0
+	ret = snd_soc_add_codec_controls(codec, tas2563_controls,
+					 ARRAY_SIZE(tas2563_controls));
 	if (ret < 0) {
 		pr_err("%s: add_codec_controls failed, err %d\n",
 			__func__, ret);
 		return ret;
 	}
+#endif
 	pTAS2563->codec = codec;
 	pTAS2563->set_calibration = tas2563_set_calibration;
 	pTAS2563->set_config = tas2563_set_config;
