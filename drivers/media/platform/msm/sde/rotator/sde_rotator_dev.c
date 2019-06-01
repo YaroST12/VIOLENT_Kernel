@@ -1937,7 +1937,7 @@ error_init_request:
 }
 EXPORT_SYMBOL(sde_rotator_inline_commit);
 
-void sde_rotator_inline_reg_dump(struct platform_device *pdev)
+void __maybe_unused sde_rotator_inline_reg_dump(struct platform_device *pdev)
 {
 	struct sde_rotator_device *rot_dev;
 
