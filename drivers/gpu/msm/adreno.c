@@ -950,6 +950,13 @@ static inline struct adreno_device *adreno_get_dev(struct platform_device *pdev)
 	return of_id ? (struct adreno_device *) of_id->data : NULL;
 }
 
+/*
+ * Since we changed qcom,idle-timeout value we need to adjust
+ * l2pc queue timeout accordingly because it should be inline
+ * with idle-timeout.
+ */
+int idle_timeout;
+
 static int adreno_of_get_power(struct adreno_device *adreno_dev,
 		struct platform_device *pdev)
 {
@@ -1016,6 +1023,8 @@ static int adreno_of_get_power(struct adreno_device *adreno_dev,
 
 	if (of_property_read_u32(node, "qcom,idle-timeout", &timeout))
 		timeout = 80;
+	else
+		idle_timeout = timeout;
 
 	device->pwrctrl.interval_timeout = msecs_to_jiffies(timeout);
 
