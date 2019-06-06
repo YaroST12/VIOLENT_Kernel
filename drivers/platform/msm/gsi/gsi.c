@@ -37,6 +37,12 @@
 
 #define GSI_STTS_REG_BITS 32
 
+#ifndef CONFIG_GSI_DEBUG
+static inline void gsi_debugfs_init(void)
+{
+}
+#endif
+
 static const struct of_device_id msm_gsi_match[] = {
 	{ .compatible = "qcom,msm_gsi", },
 	{ },
