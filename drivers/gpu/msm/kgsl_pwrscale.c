@@ -1033,6 +1033,11 @@ int kgsl_pwrscale_init(struct device *dev, const char *governor)
 		return PTR_ERR(devfreq);
 	}
 
+	/*
+	* Prevert userspace from messing
+	* with min kgsl frequency
+	*/
+	devfreq->is_boost_device = true;
 	pwrscale->devfreqptr = devfreq;
 	pwrscale->cooling_dev = of_devfreq_cooling_register(
 					device->pdev->dev.of_node, devfreq);
