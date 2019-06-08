@@ -911,33 +911,6 @@ static void __write_register(struct venus_hfi_device *device,
 	wmb();
 }
 
-static void __write_gcc_register(struct venus_hfi_device *device,
-		u32 reg, u32 value)
-{
-	u32 hwiosymaddr = reg;
-	u8 *base_addr;
-
-	__strict_check(device);
-
-	if (!device->power_enabled) {
-		dprintk(VIDC_WARN,
-			"HFI Write register failed : Power is OFF\n");
-		msm_vidc_res_handle_fatal_hw_error(device->res, true);
-		return;
-	}
-
-	base_addr = device->hal_data->gcc_reg_base;
-	dprintk(VIDC_DBG, "GCC Base addr: %pK, written to: %#x, Value: %#x.\n",
-		base_addr, hwiosymaddr, value);
-	base_addr += hwiosymaddr;
-	writel_relaxed(value, base_addr);
-
-	/*
-	 * Memory barrier to make sure value is written into the register.
-	 */
-	wmb();
-}
-
 static int __read_register(struct venus_hfi_device *device, u32 reg)
 {
 	int rc = 0;
@@ -966,33 +939,6 @@ static int __read_register(struct venus_hfi_device *device, u32 reg)
 	 */
 	rmb();
 	dprintk(VIDC_DBG, "Base addr: %pK, read from: %#x, value: %#x...\n",
-		base_addr, reg, rc);
-
-	return rc;
-}
-static int __read_gcc_register(struct venus_hfi_device *device, u32 reg)
-{
-	int rc = 0;
-	u8 *base_addr;
-
-	__strict_check(device);
-
-	if (!device->power_enabled) {
-		dprintk(VIDC_WARN,
-			"HFI Read register failed : Power is OFF\n");
-		msm_vidc_res_handle_fatal_hw_error(device->res, true);
-		return -EINVAL;
-	}
-
-	base_addr = device->hal_data->gcc_reg_base;
-
-	rc = readl_relaxed(base_addr + reg);
-	/*
-	 * Memory barrier to make sure value is read correctly from the
-	 * register.
-	 */
-	rmb();
-	dprintk(VIDC_DBG, "GCC Base addr: %pK, read from: %#x, value: %#x...\n",
 		base_addr, reg, rc);
 
 	return rc;
@@ -3817,20 +3763,6 @@ static int __init_regs_and_interrupts(struct venus_hfi_device *device,
 		goto error_irq_fail;
 	}
 
-	if (res->gcc_register_base) {
-		hal->gcc_reg_base = devm_ioremap_nocache(&res->pdev->dev,
-				res->gcc_register_base,
-					res->gcc_register_size);
-		hal->gcc_reg_size = res->gcc_register_size;
-		if (!hal->gcc_reg_base) {
-			dprintk(VIDC_ERR,
-				"could not map gcc reg addr %pa of size %d\n",
-				&res->gcc_register_base,
-				res->gcc_register_size);
-			goto error_irq_fail;
-		}
-	}
-
 	device->hal_data = hal;
 	rc = request_irq(res->irq, venus_hfi_isr, IRQF_TRIGGER_HIGH,
 			"msm_vidc", device);
@@ -3844,9 +3776,6 @@ static int __init_regs_and_interrupts(struct venus_hfi_device *device,
 		"firmware_base = %pa, register_base = %pa, register_size = %d\n",
 		&res->firmware_base, &res->register_base,
 		res->register_size);
-	dprintk(VIDC_INFO,
-		"gcc_register_base = %pa, gcc_register_size = %d\n",
-		&res->gcc_register_base, res->gcc_register_size);
 	return rc;
 
 error_irq_fail:
@@ -3933,109 +3862,6 @@ static inline void __disable_unprepare_clks(struct venus_hfi_device *device)
 		}
 		clk_disable_unprepare(cl->clk);
 	}
-}
-
-static inline int __prepare_ahb2axi_bridge(struct venus_hfi_device *device)
-{
-
-	u32 count = 0, axic_cbcr_status = 0, mvs_core_cbcr_status = 0;
-	const u32 max_tries = 10;
-	int rc = 0;
-
-	if (!device) {
-		dprintk(VIDC_ERR, "NULL device\n");
-		rc = -EINVAL;
-		goto fail_ahb2axi_enable;
-	}
-
-	if (!device->hal_data->gcc_reg_base) {
-		dprintk(VIDC_WARN, "Skip resetting ahb2axi bridge\n");
-		goto skip_reset_ahb2axi_bridge;
-	}
-
-	/* read registers */
-	axic_cbcr_status = __read_gcc_register(device, VIDEO_GCC_AXIC_CBCR);
-	mvs_core_cbcr_status = __read_register(device, VIDEO_CC_MVSC_CORE_CBCR);
-
-	/* write enable clk_ares */
-	__write_gcc_register(device, VIDEO_GCC_AXIC_CBCR,
-		axic_cbcr_status|0x4);
-	__write_register(device, VIDEO_CC_MVSC_CORE_CBCR,
-		mvs_core_cbcr_status|0x4);
-
-	/* wait for deassert */
-	usleep_range(150, 250);
-
-	/* write disable clk_ares */
-	axic_cbcr_status = axic_cbcr_status & (~0x4);
-	mvs_core_cbcr_status = mvs_core_cbcr_status & (~0x4);
-	__write_gcc_register(device, VIDEO_GCC_AXIC_CBCR, axic_cbcr_status);
-	__write_register(device, VIDEO_CC_MVSC_CORE_CBCR, mvs_core_cbcr_status);
-
-	/* write enable clk */
-	axic_cbcr_status = __read_gcc_register(device, VIDEO_GCC_AXIC_CBCR);
-	axic_cbcr_status = axic_cbcr_status | 0x1;
-	__write_gcc_register(device, VIDEO_GCC_AXIC_CBCR, axic_cbcr_status);
-	usleep_range(150, 250);
-
-	while (count < max_tries) {
-		axic_cbcr_status =
-			__read_gcc_register(device, VIDEO_GCC_AXIC_CBCR);
-		if (!(axic_cbcr_status & BIT(31)))
-			break;
-		usleep_range(150, 250);
-		count++;
-	}
-	if (count == max_tries) {
-		dprintk(VIDC_ERR,
-			"Unable to enable gcc_axic_cbcr (%#x)\n",
-			axic_cbcr_status);
-		rc = -EINVAL;
-		goto fail_ahb2axi_enable;
-	}
-
-fail_ahb2axi_enable:
-skip_reset_ahb2axi_bridge:
-	return rc;
-}
-
-static inline void __unprepare_ahb2axi_bridge(struct venus_hfi_device *device,
-						u32 version)
-{
-	u32 axi0_cbcr_status = 0, axi1_cbcr_status = 0;
-
-	if (!device)
-		return;
-
-	/* reset axi0 and axi1 as needed only for specific video hardware */
-	version &= ~GENMASK(15, 0);
-	if (version != (0x5 << 28 | 0x10 << 16))
-		return;
-
-	if (!(device->intr_status & VIDC_WRAPPER_INTR_STATUS_A2HWD_BMSK))
-		return;
-
-	dprintk(VIDC_ERR,
-		"reset axi cbcr to recover from hung\n");
-
-	/* read registers */
-	axi0_cbcr_status = __read_gcc_register(device, VIDEO_GCC_AXI0_CBCR);
-	axi1_cbcr_status = __read_gcc_register(device, VIDEO_GCC_AXI1_CBCR);
-
-	/* write enable clk_ares */
-	__write_gcc_register(device, VIDEO_GCC_AXI0_CBCR,
-		axi0_cbcr_status|0x4);
-	__write_gcc_register(device, VIDEO_GCC_AXI1_CBCR,
-		axi1_cbcr_status|0x4);
-
-	/* wait for deassert */
-	usleep_range(150, 250);
-
-	/* write disable clk_ares */
-	axi0_cbcr_status = axi0_cbcr_status & (~0x4);
-	axi1_cbcr_status = axi1_cbcr_status & (~0x4);
-	__write_gcc_register(device, VIDEO_GCC_AXI0_CBCR, axi0_cbcr_status);
-	__write_gcc_register(device, VIDEO_GCC_AXI1_CBCR, axi1_cbcr_status);
 }
 
 static inline int __prepare_enable_clks(struct venus_hfi_device *device)
@@ -4720,12 +4546,6 @@ static int __venus_power_on(struct venus_hfi_device *device)
 		goto fail_enable_gdsc;
 	}
 
-	rc = __prepare_ahb2axi_bridge(device);
-	if (rc) {
-		dprintk(VIDC_ERR, "Failed to enable ahb2axi: %d\n", rc);
-		goto fail_enable_clks;
-	}
-
 	rc = __prepare_enable_clks(device);
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to enable clocks: %d\n", rc);
@@ -4782,8 +4602,6 @@ static void __venus_power_off(struct venus_hfi_device *device)
 	version = __read_register(device, VIDC_WRAPPER_HW_VERSION);
 
 	__disable_unprepare_clks(device);
-
-	__unprepare_ahb2axi_bridge(device, version);
 
 	device->intr_status = 0;
 
@@ -5278,7 +5096,6 @@ void venus_hfi_delete_device(void *device)
 			destroy_workqueue(close->venus_pm_workq);
 			free_irq(dev->hal_data->irq, close);
 			iounmap(dev->hal_data->register_base);
-			iounmap(dev->hal_data->gcc_reg_base);
 			kfree(close->hal_data);
 			kfree(close->response_pkt);
 			kfree(close->raw_packet);

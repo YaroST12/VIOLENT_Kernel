@@ -806,9 +806,6 @@ int read_platform_resources_from_drv_data(
 
 	res->csc_coeff_data = &platform_data->csc_data;
 
-	res->gcc_register_base = platform_data->gcc_register_base;
-	res->gcc_register_size = platform_data->gcc_register_size;
-
 	res->vpu_ver = platform_data->vpu_ver;
 	return rc;
 
