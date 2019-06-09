@@ -671,15 +671,10 @@ int msm_vidc_enum_framesizes(void *instance, struct v4l2_frmsizeenum *fsize)
 
 	capability = &inst->capability;
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
-#ifndef CONFIG_ARCH_XIAOMI_SM6150
 	fsize->stepwise.min_width = capability->width.min;
-	fsize->stepwise.min_height = capability->height.min;
-#else
-	fsize->stepwise.min_width = 64;
-	fsize->stepwise.min_height = 64;
-#endif
 	fsize->stepwise.max_width = capability->width.max;
 	fsize->stepwise.step_width = capability->width.step_size;
+	fsize->stepwise.min_height = capability->height.min;
 	fsize->stepwise.max_height = capability->height.max;
 	fsize->stepwise.step_height = capability->height.step_size;
 	return 0;
