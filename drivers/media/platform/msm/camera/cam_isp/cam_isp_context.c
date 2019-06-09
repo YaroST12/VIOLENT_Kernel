@@ -54,75 +54,6 @@ static void __cam_isp_ctx_update_state_monitor_array(
 		jiffies_to_msecs(jiffies);
 }
 
-static const char *__cam_isp_ctx_substate_val_to_type(
-	uint32_t type)
-{
-	switch (type) {
-	case CAM_ISP_CTX_ACTIVATED_SOF:
-		return "SOF";
-	case CAM_ISP_CTX_ACTIVATED_APPLIED:
-		return "APPLIED";
-	case CAM_ISP_CTX_ACTIVATED_EPOCH:
-		return "EPOCH";
-	case CAM_ISP_CTX_ACTIVATED_BUBBLE:
-		return "BUBBLE";
-	case CAM_ISP_CTX_ACTIVATED_BUBBLE_APPLIED:
-		return "BUBBLE_APPLIED";
-	case CAM_ISP_CTX_ACTIVATED_HALT:
-		return "HALT";
-	default:
-		return "CAM_ISP_CTX_INVALID_STATE";
-	}
-}
-
-static const char *__cam_isp_hw_evt_val_to_type(
-	uint32_t evt_id)
-{
-	switch (evt_id) {
-	case CAM_ISP_STATE_CHANGE_TRIGGER_ERROR:
-		return "ERROR";
-	case CAM_ISP_STATE_CHANGE_TRIGGER_SOF:
-		return "SOF";
-	case CAM_ISP_STATE_CHANGE_TRIGGER_REG_UPDATE:
-		return "REG_UPDATE";
-	case CAM_ISP_STATE_CHANGE_TRIGGER_EPOCH:
-		return "EPOCH";
-	case CAM_ISP_STATE_CHANGE_TRIGGER_EOF:
-		return "EOF";
-	case CAM_ISP_STATE_CHANGE_TRIGGER_DONE:
-		return "DONE";
-	default:
-		return "CAM_ISP_EVENT_INVALID";
-	}
-}
-
-static void __cam_isp_ctx_dump_state_monitor_array(
-	struct cam_isp_context *ctx_isp)
-{
-	int i = 0;
-	uint64_t state_head = 0;
-	uint64_t index;
-
-	state_head = atomic64_read(&ctx_isp->state_monitor_head);
-	CAM_ERR_RATE_LIMIT(CAM_ISP,
-		"Dumping state information for preceding requests");
-
-	for (i = CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES - 1; i >= 0;
-		i--) {
-		index = (((state_head - i) +
-			CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES) %
-			CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES);
-		CAM_ERR_RATE_LIMIT(CAM_ISP,
-		"time[0x%llx] req_id[%u] state[%s] evt_type[%s]",
-		ctx_isp->cam_isp_ctx_state_monitor[index].evt_time_stamp,
-		ctx_isp->cam_isp_ctx_state_monitor[index].req_id,
-		__cam_isp_ctx_substate_val_to_type(
-		ctx_isp->cam_isp_ctx_state_monitor[index].curr_state),
-		__cam_isp_hw_evt_val_to_type(
-		ctx_isp->cam_isp_ctx_state_monitor[index].trigger));
-	}
-}
-
 static void cam_isp_ctx_dump_req(struct cam_isp_ctx_req *req_isp)
 {
 	int i = 0, rc = 0;
@@ -3511,10 +3442,6 @@ static int __cam_isp_ctx_handle_irq_in_activated(void *context,
 	irq_ops = &ctx_isp->substate_machine_irq[ctx_isp->substate_activated];
 	if (irq_ops->irq_ops[evt_id]) {
 		rc = irq_ops->irq_ops[evt_id](ctx_isp, evt_data);
-	} else {
-		CAM_DBG(CAM_ISP, "No handle function for substate %d",
-			ctx_isp->substate_activated);
-		__cam_isp_ctx_dump_state_monitor_array(ctx_isp);
 	}
 
 	CAM_DBG(CAM_ISP, "Exit: State %d Substate %d",
