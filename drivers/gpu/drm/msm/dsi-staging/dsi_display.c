@@ -5368,6 +5368,8 @@ static int dsi_display_bind(struct device *dev,
 	dsi_display_register_te_irq(display);
 
 	dsi_display_feature_create_sysfs(display);
+	/* Set movie colour mode by default */
+	dsi_panel_set_feature(display->panel, DSI_CMD_SET_CABC_MOVIE_ON);
 	dsi_display_whitepoint_create_sysfs();
 
 	goto error;
