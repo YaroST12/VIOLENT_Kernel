@@ -1601,13 +1601,19 @@ static int spi_geni_probe(struct platform_device *pdev)
 		pm_runtime_use_autosuspend(&pdev->dev);
 	}
 	pm_runtime_enable(&pdev->dev);
+	ret = sysfs_create_file(&(geni_mas->dev->kobj),
+				&dev_attr_spi_slave_state.attr);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to create sysfs\n");
+		sysfs_remove_file(&pdev->dev.kobj, &dev_attr_spi_slave_state.attr);
+	}
+
 	ret = spi_register_master(spi);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register SPI master\n");
 		goto spi_geni_probe_unmap;
 	}
-	sysfs_create_file(&(geni_mas->dev->kobj),
-				&dev_attr_spi_slave_state.attr);
+
 	return ret;
 spi_geni_probe_unmap:
 	devm_iounmap(&pdev->dev, geni_mas->base);
