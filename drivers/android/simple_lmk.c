@@ -170,9 +170,6 @@ static int process_victims(struct victim_info *varr, int vlen,
 	return nr_to_kill;
 }
 
-static int dead_tasks = 0;
-module_param(dead_tasks, int, 0444);
-
 static void scan_and_kill(unsigned long pages_needed)
 {
 	int i, nr_to_kill = 0, nr_victims = 0;
@@ -214,14 +211,10 @@ static void scan_and_kill(unsigned long pages_needed)
 	for (i = 0; i < nr_to_kill; i++) {
 		struct victim_info *victim = &victims[i];
 		struct task_struct *vtsk = victim->tsk;
-		struct task_struct *curr = current;
 
-		if (curr->flags & PF_KTHREAD)
-			pr_info("Killing %s with adj %d to free %lu KiB on behalf of '%s'\n",
-				vtsk->comm,
+		pr_info("Killing %s with adj %d to free %lu KiB\n", vtsk->comm,
 			vtsk->signal->oom_score_adj,
-			victim->size << (PAGE_SHIFT - 10),
-			(curr->flags & PF_KTHREAD) ? "a kthread" : curr->comm);
+			victim->size << (PAGE_SHIFT - 10));
 
 		/* Accelerate the victim's death by forcing the kill signal */
 		do_send_sig_info(SIGKILL, SIG_INFO_TYPE, vtsk, KILL_GROUP_TYPE);
@@ -245,8 +238,6 @@ static void scan_and_kill(unsigned long pages_needed)
 		put_task_struct(vtsk);
 	}
 
-	dead_tasks++;
-	pr_info("dead_tasks: %i\n", dead_tasks);
 	/* Wait until all the victims die */
 	wait_for_completion(&reclaim_done);
 }
@@ -289,14 +280,12 @@ void simple_lmk_decide_reclaim(int kswapd_priority)
 	if (kswapd_priority != CONFIG_ANDROID_SIMPLE_LMK_AGGRESSION)
 		return;
 
-	pr_info("%s: fire, water, burn, kswapd prio = %i\n", __func__, kswapd_priority);
 	if (!cmpxchg(&needs_reclaim, false, true))
 		wake_up(&oom_waitq);
 }
 
 void simple_lmk_stop_reclaim(void)
 {
-	pr_info("%s: stop\n", __func__);
 	WRITE_ONCE(needs_reclaim, false);
 }
 
@@ -327,7 +316,6 @@ static int simple_lmk_init_set(const char *val, const struct kernel_param *kp)
 	if (cmpxchg(&init_done, false, true))
 		return 0;
 
-	pr_info("slmk initialised\n");
 	thread = kthread_run(simple_lmk_reclaim_thread, NULL, "simple_lmkd");
 	BUG_ON(IS_ERR(thread));
 
