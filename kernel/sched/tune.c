@@ -632,76 +632,28 @@ boost_write(struct cgroup_subsys_state *css, struct cftype *cft,
 	return 0;
 }
 
-#ifdef CONFIG_STUNE_ASSIST
-#ifdef CONFIG_SCHED_WALT
-static int sched_boost_override_write_wrapper(struct cgroup_subsys_state *css,
-			struct cftype *cft, u64 override)
-{
-	if (!strcmp(current->comm, "init"))
-		return 0;
-
-	sched_boost_override_write(css, NULL, override);
-
-	return 0;
-}
-
-static int sched_colocate_write_wrapper(struct cgroup_subsys_state *css,
-			struct cftype *cft, u64 colocate)
-{
-	if (!strcmp(current->comm, "init"))
-		return 0;
-
-	sched_colocate_write(css, NULL, colocate);
-
-	return 0;
-}
-#endif
-
-static int boost_write_wrapper(struct cgroup_subsys_state *css,
-			struct cftype *cft, s64 boost)
-{
-	if (!strcmp(current->comm, "init"))
-		return 0;
-
-	boost_write(css, NULL, boost);
-
-	return 0;
-}
-
-static int prefer_idle_write_wrapper(struct cgroup_subsys_state *css,
-			struct cftype *cft, u64 prefer_idle)
-{
-	if (!strcmp(current->comm, "init"))
-		return 0;
-
-	prefer_idle_write(css, NULL, prefer_idle);
-
-	return 0;
-}
-#endif
-
 static struct cftype files[] = {
 #ifdef CONFIG_SCHED_WALT
 	{
 		.name = "sched_boost_no_override",
 		.read_u64 = sched_boost_override_read,
-		.write_u64 = sched_boost_override_write_wrapper,
+		.write_u64 = sched_boost_override_write,
 	},
 	{
 		.name = "colocate",
 		.read_u64 = sched_colocate_read,
-		.write_u64 = sched_colocate_write_wrapper,
+		.write_u64 = sched_colocate_write,
 	},
 #endif
 	{
 		.name = "boost",
 		.read_s64 = boost_read,
-		.write_s64 = boost_write_wrapper,
+		.write_s64 = boost_write,
 	},
 	{
 		.name = "prefer_idle",
 		.read_u64 = prefer_idle_read,
-		.write_u64 = prefer_idle_write_wrapper,
+		.write_u64 = prefer_idle_write,
 	},
 	{ }	/* terminate */
 };
@@ -726,35 +678,6 @@ schedtune_boostgroup_init(struct schedtune *st)
 	return 0;
 }
 
-#ifdef CONFIG_STUNE_ASSIST
-static void write_default_values(struct cgroup_subsys_state *css)
-{
-	u8 i;
-	char cg_name[15];
-	int boost_values[3] = { 5, 0, -25 };
-	bool prefer_idle_values[3] = { 1, 1, 0 };
-	bool sched_colocate_values[3] = { 0, 0, 1 };
-	bool sched_boost_no_override_values[3] = { 1, 1, 0 };
-	char *stune_groups[] =
-	{ "top-app", "foreground", "background" };
-
-	/* Find cgroup and write default values */
-	cgroup_name(css->cgroup, cg_name, NAME_MAX + 1);
-
-	for (i = 0; i < ARRAY_SIZE(stune_groups); i++) {
-		if (!strcmp(cg_name, stune_groups[i])) {
-			pr_info("%s: %i - %i - %i - %i\n", cg_name,
-					boost_values[i], prefer_idle_values[i], sched_colocate_values[i],
-					sched_boost_no_override_values[i]);
-			boost_write(css, NULL, boost_values[i]);
-			prefer_idle_write(css, NULL, prefer_idle_values[i]);
-			sched_colocate_write(css, NULL, sched_colocate_values[i]);
-			sched_boost_override_write(css, NULL, sched_boost_no_override_values[i]);
-		}
-	}
-}
-#endif
-
 static struct cgroup_subsys_state *
 schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 {
@@ -770,13 +693,10 @@ schedtune_css_alloc(struct cgroup_subsys_state *parent_css)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx) {
+	/* Allow only a limited number of boosting groups */
+	for (idx = 1; idx < BOOSTGROUPS_COUNT; ++idx)
 		if (!allocated_group[idx])
 			break;
-#ifdef CONFIG_STUNE_ASSIST
-		write_default_values(&allocated_group[idx]->css);
-#endif
-	}
 	if (idx == BOOSTGROUPS_COUNT) {
 		pr_err("Trying to create more than %d SchedTune boosting groups\n",
 		       BOOSTGROUPS_COUNT);
