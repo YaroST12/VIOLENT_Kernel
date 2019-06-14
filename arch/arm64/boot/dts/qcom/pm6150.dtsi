@@ -667,4 +667,9 @@
 			};
 		};
 	};
+	/delete-node/ pm6150-ibat-lvl0;
+	/delete-node/ pm6150-ibat-lvl1;
+	/delete-node/ pm6150-vbat-lvl0;
+	/delete-node/ pm6150-vbat-lvl1;
+	/delete-node/ pm6150-vbat-lvl2;
 };
