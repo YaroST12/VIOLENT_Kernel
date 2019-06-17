@@ -52,6 +52,12 @@ static DEFINE_MUTEX(poweroff_lock);
 static atomic_t in_suspend;
 static bool power_off_triggered;
 
+#ifdef CONFIG_ARCH_XIAOMI_SM6150
+struct thermal_message_device {
+	struct device device;
+};
+#endif //CONFIG_ARCH_XIAOMI_SM6150
+
 static struct thermal_governor *def_governor;
 
 static struct workqueue_struct *thermal_passive_wq;
@@ -557,6 +563,35 @@ static void thermal_zone_device_check(struct work_struct *work)
 						      poll_queue.work);
 	thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 }
+
+#ifdef CONFIG_ARCH_XIAOMI_SM6150
+static ssize_t sconfig_show(struct device *dev,
+		struct device_attribute *devattr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t sconfig_store(struct device *dev,
+		struct device_attribute *devattr, const char *buf, size_t count)
+{
+	return count;
+}
+
+static ssize_t temp_state_show(struct device *dev,
+		struct device_attribute *devattr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t temp_state_store(struct device *dev,
+		struct device_attribute *devattr, const char *buf, size_t count)
+{
+	return count;
+}
+
+static DEVICE_ATTR(sconfig, 0644, sconfig_show, sconfig_store);
+static DEVICE_ATTR(temp_state, 0644, temp_state_show, temp_state_store);
+#endif //CONFIG_ARCH_XIAOMI_SM6150
 
 /*
  * Power actor section: interface to power actors to estimate power
@@ -1621,6 +1656,38 @@ static struct notifier_block thermal_pm_nb = {
 	.notifier_call = thermal_pm_notify,
 };
 
+#ifdef CONFIG_ARCH_XIAOMI_SM6150
+static int thermal_message_device_register(void)
+{
+	struct thermal_message_device *thermal_msg;
+	int result = 0;
+
+	thermal_msg = kzalloc(sizeof(struct thermal_message_device), GFP_KERNEL);
+	thermal_msg->device.class = &thermal_class;
+	dev_set_name(&thermal_msg->device, "thermal_message");
+
+	result = device_register(&thermal_msg->device);
+	if (result) {
+		kfree(thermal_msg);
+		return result;
+	}
+
+	result = device_create_file(&thermal_msg->device, &dev_attr_sconfig);
+	if (result)
+		goto unregister;
+
+	result = device_create_file(&thermal_msg->device, &dev_attr_temp_state);
+	if (result)
+		goto unregister;
+
+	return result;
+
+unregister:
+	device_unregister(&thermal_msg->device);
+	return result;
+}
+#endif //CONFIG_ARCH_XIAOMI_SM6150
+
 static int __init thermal_init(void)
 {
 	int result;
@@ -1651,6 +1718,10 @@ static int __init thermal_init(void)
 	if (result)
 		pr_warn("Thermal: Can not register suspend notifier, return %d\n",
 			result);
+
+#ifdef CONFIG_ARCH_XIAOMI_SM6150
+	thermal_message_device_register();
+#endif //CONFIG_ARCH_XIAOMI_SM6150
 
 	return 0;
 
