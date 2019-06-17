@@ -480,12 +480,6 @@ config THERMAL_TSENS
 	  thermal userspace client when a threshold is reached. Warm/Cool
 	  temperature thresholds can be set independently for each sensor.
 
-config THERMAL_SWITCH
-	bool "Support thermal config switch"
-	default n
-	help
-		Support xiaomi thermal config switch.
-
 menu "Qualcomm thermal drivers"
 depends on (ARCH_QCOM && OF) || COMPILE_TEST
 source "drivers/thermal/qcom/Kconfig"
