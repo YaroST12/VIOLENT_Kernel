@@ -690,6 +690,15 @@ KBUILD_CFLAGS   += -O2
 endif
 endif
 
+ifeq ($(cc-name),clang)
+KBUILD_CFLAGS += -O3 -mcpu=cortex-a55
+HOSTCFLAGS    += -O3
+HOSTCXXFLAGS  += -O3
+else
+KBUILD_CFLAGS	+= -O2 -mcpu=cortex-a55 -Wno-psabi
+KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
+endif
+
 KBUILD_CFLAGS += $(call cc-ifversion, -lt, 0409, \
 			$(call cc-disable-warning,maybe-uninitialized,))
 
