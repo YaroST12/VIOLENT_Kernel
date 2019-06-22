@@ -39,6 +39,7 @@
 #include <linux/proc_fs.h>
 #include <linux/notifier.h>
 #include <linux/fb.h>
+#include <linux/freezer.h>
 #include <drm/drm_bridge.h>
 #include <linux/msm_drm_notify.h>
 
@@ -97,8 +98,23 @@ struct fpc1020_data {
 	struct notifier_block fb_notifier;
 	bool fb_black;
 	bool wait_finger_down;
+	bool irq_enabled;
+	struct task_struct *fingerprintd;
 	struct work_struct work;
+	struct work_struct pm_work;
 };
+
+static void config_irq(struct fpc1020_data *fpc1020, bool enabled)
+{
+	if (enabled != fpc1020->irq_enabled) {
+		if (enabled)
+			enable_irq(gpio_to_irq(fpc1020->irq_gpio));
+		else
+			disable_irq(gpio_to_irq(fpc1020->irq_gpio));
+
+		fpc1020->irq_enabled = enabled;
+	}
+}
 
 static int vreg_setup(struct fpc1020_data *fpc1020, const char *name,
 	bool enable)
@@ -451,6 +467,9 @@ static ssize_t wakeup_enable_set(struct device *dev,
 		ret = -EINVAL;
 	mutex_unlock(&fpc1020->lock);
 
+	config_irq(fpc1020, !!atomic_read(&fpc1020->wakeup_enabled));
+	schedule_work(&fpc1020->pm_work);
+
 	return ret;
 }
 static DEVICE_ATTR(wakeup_enable, S_IWUSR, NULL, wakeup_enable_set);
@@ -607,6 +626,47 @@ static const struct file_operations proc_file_fpc_ops = {
 	.release = single_release,
 };
 
+static void set_fingerprintd_nice(struct fpc1020_data *fpc1020, int nice)
+{
+	struct task_struct *p;
+	char name[TASK_COMM_LEN];
+
+	if (!fpc1020)
+		return;
+
+	if (fpc1020->fingerprintd) {
+		get_task_comm(name, fpc1020->fingerprintd);
+		pr_info("%s nice changed to %i, fast path\n", name, nice);
+		p = fpc1020->fingerprintd;
+		set_user_nice(p, nice);
+		return;
+	}
+
+	/* Find and store fingerprintd's task struct */
+	read_lock(&tasklist_lock);
+	for_each_process(p) {
+		if (!memcmp(p->comm, "fingerprint", 11)) {
+			fpc1020->fingerprintd = p;
+			get_task_comm(name, p);
+			pr_info("%s nice changed to %i, slow path\n", name, nice);
+			set_user_nice(p, nice);
+			break;
+		}
+	}
+	read_unlock(&tasklist_lock);
+}
+
+static void fpc1020_suspend_resume(struct work_struct *work)
+{
+	struct fpc1020_data *fpc1020 =
+		container_of(work, typeof(*fpc1020), pm_work);
+
+	if (atomic_read(&fpc1020->wakeup_enabled))
+		set_fingerprintd_nice(fpc1020, -1);
+	else
+		set_fingerprintd_nice(fpc1020, 0);
+}
+
 static int fpc1020_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -731,6 +791,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 	fpc1020->fb_black = false;
 	fpc1020->wait_finger_down = false;
 	INIT_WORK(&fpc1020->work, notification_work);
+	INIT_WORK(&fpc1020->pm_work, fpc1020_suspend_resume);
 	fpc1020->fb_notifier = fpc_notif_block;
 	msm_drm_register_client(&fpc1020->fb_notifier);
 
