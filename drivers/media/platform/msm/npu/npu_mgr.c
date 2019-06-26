@@ -85,7 +85,6 @@ int fw_init(struct npu_device *npu_dev)
 	mutex_lock(&host_ctx->lock);
 	if (host_ctx->fw_state == FW_ENABLED) {
 		host_ctx->fw_ref_cnt++;
-		pr_debug("fw_ref_cnt %d\n", host_ctx->fw_ref_cnt);
 		mutex_unlock(&host_ctx->lock);
 		return 0;
 	}
@@ -179,7 +178,6 @@ retry:
 
 	mutex_unlock(&host_ctx->lock);
 	pr_debug("firmware init complete\n");
-	pr_debug("fw_ref_cnt %d\n", host_ctx->fw_ref_cnt);
 
 	/* Set logging state */
 	if (!npu_hw_log_enabled()) {
@@ -929,8 +927,6 @@ static void app_msg_proc(struct npu_host_ctx *host_ctx, uint32_t *msg)
 			prop_rsp_pkt->prop_id,
 			param[0]);
 
-		host_ctx->cmd_ret_status = prop_rsp_pkt->header.status;
-
 		complete_all(&host_ctx->property_done);
 		break;
 	}
@@ -1317,11 +1313,9 @@ int32_t npu_host_set_fw_property(struct npu_device *npu_dev,
 	} else if (ret < 0) {
 		pr_err("Wait for set_property done interrupted by signal\n");
 		goto set_prop_exit;
+	} else if (ret > 0) {
+		ret = 0;
 	}
-
-	ret = host_ctx->cmd_ret_status;
-	if (ret)
-		pr_err("set fw property failed %d\n", ret);
 
 set_prop_exit:
 	kfree(prop_packet);
@@ -1339,7 +1333,7 @@ int32_t npu_host_get_fw_property(struct npu_device *npu_dev,
 
 	num_of_params = min_t(uint32_t, property->num_of_params,
 		(uint32_t)PROP_PARAM_MAX_SIZE);
-	pkt_size = sizeof(*prop_packet) + num_of_params * sizeof(uint32_t);
+	pkt_size = sizeof(*prop_packet);
 	prop_packet = kzalloc(pkt_size, GFP_KERNEL);
 
 	if (!prop_packet)
@@ -1354,8 +1348,6 @@ int32_t npu_host_get_fw_property(struct npu_device *npu_dev,
 	prop_packet->prop_id = property->prop_id;
 	prop_packet->num_params = num_of_params;
 	prop_packet->network_hdl = property->network_hdl;
-	for (i = 0; i < num_of_params; i++)
-		prop_packet->prop_param[i] = property->prop_param[i];
 
 	reinit_completion(&host_ctx->property_done);
 	ret = npu_send_misc_cmd(npu_dev, IPC_QUEUE_APPS_EXEC,
