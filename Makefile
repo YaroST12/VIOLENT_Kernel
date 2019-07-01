@@ -692,7 +692,8 @@ endif
 endif
 
 ifeq ($(cc-name),clang)
-KBUILD_CFLAGS += -O3 -mcpu=cortex-a55
+KBUILD_CFLAGS += -O3 $(call cc-option,-mcpu=cortex-a55) \
+			$(call cc-option,-march=armv8.2-a)
 HOSTCFLAGS    += -O3
 HOSTCXXFLAGS  += -O3
 else
