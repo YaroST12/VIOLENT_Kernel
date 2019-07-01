@@ -62,6 +62,7 @@ struct qg_dt {
 	int			esr_disable_soc;
 	int			esr_min_ibat_ua;
 	int			shutdown_soc_threshold;
+	int			sys_min_volt_mv;
 	bool			hold_soc_while_full;
 	bool			linearize_soc;
 	bool			cl_disable;
