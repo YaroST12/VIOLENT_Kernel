@@ -97,21 +97,8 @@ struct fpc1020_data {
 	struct notifier_block fb_notifier;
 	bool fb_black;
 	bool wait_finger_down;
-	bool irq_enabled;
 	struct work_struct work;
 };
-
-static void config_irq(struct fpc1020_data *fpc1020, bool enabled)
-{
-	if (enabled != fpc1020->irq_enabled) {
-		if (enabled)
-			enable_irq(gpio_to_irq(fpc1020->irq_gpio));
-		else
-			disable_irq(gpio_to_irq(fpc1020->irq_gpio));
-
-		fpc1020->irq_enabled = enabled;
-	}
-}
 
 static int vreg_setup(struct fpc1020_data *fpc1020, const char *name,
 	bool enable)
@@ -306,13 +293,11 @@ static ssize_t irq_enable_set(struct device *dev,
 	rc = kstrtou64(buf, 0, &val);
 
 	mutex_lock(&fpc1020->lock);
-	if (val == 1) {
+	if (val == 1)
 		enable_irq(gpio_to_irq(fpc1020->irq_gpio));
-		fpc1020->irq_enabled = 1;
-	} else if (val == 0) {
+	else if (val == 0)
 		disable_irq(gpio_to_irq(fpc1020->irq_gpio));
-		fpc1020->irq_enabled = 0;
-	} else {
+	else {
 		mutex_unlock(&fpc1020->lock);
 		return -ENOENT;
 	}
@@ -460,10 +445,9 @@ static ssize_t wakeup_enable_set(struct device *dev,
 	mutex_lock(&fpc1020->lock);
 	if (!strcmp(buf, "enable"))
 		atomic_set(&fpc1020->wakeup_enabled, 1);
-	else if (!strcmp(buf, "disable")) {
-		config_irq(fpc1020, 0);
+	else if (!strcmp(buf, "disable"))
 		atomic_set(&fpc1020->wakeup_enabled, 0);
-	} else
+	else
 		ret = -EINVAL;
 	mutex_unlock(&fpc1020->lock);
 
