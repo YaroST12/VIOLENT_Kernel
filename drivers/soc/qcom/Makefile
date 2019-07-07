@@ -96,3 +96,7 @@ obj-$(CONFIG_QCOM_CX_IPEAK) += cx_ipeak.o
 obj-$(CONFIG_QCOM_AOP_DDR_MESSAGING) += aop_ddr_msgs.o
 obj-$(CONFIG_MSM_HAB) += hab/
 obj-$(CONFIG_QCOM_HYP_CORE_CTL) += hyp_core_ctl.o
+
+CFLAGS_rpm_stats.o += -DCONFIG_DEBUG_FS
+CFLAGS_rpm_master_stat.o += -DCONFIG_DEBUG_FS
+CFLAGS_rpmh_master_stat.o += -DCONFIG_DEBUG_FS
