@@ -125,18 +125,17 @@ error:
  */
 static int dsi_pwr_enable_vregs(struct dsi_regulator_info *regs, bool enable)
 {
-	int rc = 0, i = 0, a = 0;
+	int rc = 0, i = 0;
 	struct dsi_vreg *vreg;
 	int num_of_v = 0;
-	const char *vregs_list[] = { "lab", "ibb", "vddio" };
 
 	if (enable) {
 		for (i = 0; i < regs->count; i++) {
 			if (enable_gesture_mode) {
-				for (a = 0; a < ARRAY_SIZE(vregs_list); a++) {
-					if (!strcmp(regs->vregs[i].vreg_name, vregs_list[a]))
-						continue;
-				}
+				if (!strcmp(regs->vregs[i].vreg_name, "lab") ||
+					!strcmp(regs->vregs[i].vreg_name, "ibb") ||
+					!strcmp(regs->vregs[i].vreg_name, "vddio"))
+				continue;
 			}
 			vreg = &regs->vregs[i];
 			if (vreg->pre_on_sleep)
@@ -174,10 +173,10 @@ static int dsi_pwr_enable_vregs(struct dsi_regulator_info *regs, bool enable)
 	} else {
 		for (i = (regs->count - 1); i >= 0; i--) {
 			if (enable_gesture_mode) {
-				for (a = 0; a < ARRAY_SIZE(vregs_list); a++) {
-					if (!strcmp(regs->vregs[i].vreg_name, vregs_list[a]))
-						continue;
-				}
+				if (!strcmp(regs->vregs[i].vreg_name, "lab") ||
+					!strcmp(regs->vregs[i].vreg_name, "ibb") ||
+					!strcmp(regs->vregs[i].vreg_name, "vddio"))
+				continue;
 			}
 			if (regs->vregs[i].pre_off_sleep)
 				msleep(regs->vregs[i].pre_off_sleep);
