@@ -12,7 +12,6 @@
 #include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
-#include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/uaccess.h>
 #include <linux/msm_gsi.h>
@@ -27,6 +26,7 @@
 		pr_err(fmt, ## args)
 
 static struct dentry *dent;
+static char dbg_buff[4096];
 static void *gsi_ipc_logbuf_low;
 
 static void gsi_wq_print_dp_stats(struct work_struct *work);
@@ -44,49 +44,35 @@ static ssize_t gsi_dump_evt(struct file *file,
 	uint32_t val;
 	struct gsi_evt_ctx *ctx;
 	uint16_t i;
-	int ret = 0;
 
-	if (count < 3)
+	if (sizeof(dbg_buff) < count + 1)
 		return -EINVAL;
 
-	sptr = kmalloc((count+1) * sizeof(char), GFP_KERNEL);
-	if (!sptr)
-		return -ENOMEM;
+	missing = copy_from_user(dbg_buff, buf, count);
+	if (missing)
+		return -EFAULT;
 
-	missing = copy_from_user(sptr, buf, count);
-	if (missing) {
-		ret = -EFAULT;
-		goto end;
-	}
+	dbg_buff[count] = '\0';
 
-	sptr[count] = '\0';
+	sptr = dbg_buff;
 
 	token = strsep(&sptr, " ");
-	if (!token) {
-		ret = -EINVAL;
-		goto end;
-	}
-	if (kstrtou32(token, 0, &arg1)) {
-		ret = -EINVAL;
-		goto end;
-	}
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &arg1))
+		return -EINVAL;
 
 	token = strsep(&sptr, " ");
-	if (!token) {
-		ret = -EINVAL;
-		goto end;
-	}
-	if (kstrtou32(token, 0, &arg2)) {
-		ret = -EINVAL;
-		goto end;
-	}
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &arg2))
+		return -EINVAL;
 
 	TDBG("arg1=%u arg2=%u\n", arg1, arg2);
 
 	if (arg1 >= gsi_ctx->max_ev) {
 		TERR("invalid evt ring id %u\n", arg1);
-		ret = -EINVAL;
-		goto end;
+		return -EINVAL;
 	}
 
 	val = gsi_readl(gsi_ctx->base +
@@ -158,9 +144,7 @@ static ssize_t gsi_dump_evt(struct file *file,
 		}
 	}
 
-end:
-	kfree(sptr);
-	return ret < 0 ? ret : count;
+	return count;
 }
 
 static ssize_t gsi_dump_ch(struct file *file,
@@ -173,49 +157,35 @@ static ssize_t gsi_dump_ch(struct file *file,
 	uint32_t val;
 	struct gsi_chan_ctx *ctx;
 	uint16_t i;
-	int ret = 0;
 
-	if (count < 3)
+	if (sizeof(dbg_buff) < count + 1)
 		return -EINVAL;
 
-	sptr = kmalloc((count+1) * sizeof(char), GFP_KERNEL);
-	if (!sptr)
-		return -ENOMEM;
+	missing = copy_from_user(dbg_buff, buf, count);
+	if (missing)
+		return -EFAULT;
 
-	missing = copy_from_user(sptr, buf, count);
-	if (missing) {
-		ret = -EFAULT;
-		goto end;
-	}
+	dbg_buff[count] = '\0';
 
-	sptr[count] = '\0';
+	sptr = dbg_buff;
 
 	token = strsep(&sptr, " ");
-	if (!token) {
-		ret = -EINVAL;
-		goto end;
-	}
-	if (kstrtou32(token, 0, &arg1)) {
-		ret = -EINVAL;
-		goto end;
-	}
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &arg1))
+		return -EINVAL;
 
 	token = strsep(&sptr, " ");
-	if (!token) {
-		ret = -EINVAL;
-		goto end;
-	}
-	if (kstrtou32(token, 0, &arg2)) {
-		ret = -EINVAL;
-		goto end;
-	}
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &arg2))
+		return -EINVAL;
 
 	TDBG("arg1=%u arg2=%u\n", arg1, arg2);
 
 	if (arg1 >= gsi_ctx->max_ch) {
 		TERR("invalid chan id %u\n", arg1);
-		ret = -EINVAL;
-		goto end;
+		return -EINVAL;
 	}
 
 	val = gsi_readl(gsi_ctx->base +
@@ -290,9 +260,8 @@ static ssize_t gsi_dump_ch(struct file *file,
 			TERR("No VA supplied for chan id %u\n", arg1);
 		}
 	}
-end:
-	kfree(sptr);
-	return ret < 0 ? ret : count;
+
+	return count;
 }
 
 static void gsi_dump_ch_stats(struct gsi_chan_ctx *ctx)
@@ -328,19 +297,16 @@ static ssize_t gsi_dump_stats(struct file *file,
 {
 	int ch_id;
 	int min, max;
-	char *sptr;
 
-	if (count < 1)
-		goto print_help;
-
-	sptr = kmalloc((count+1) * sizeof(char), GFP_KERNEL);
-	if (!sptr)
-		return -ENOMEM;
-
-	if(copy_from_user(sptr, buf, count))
+	if (sizeof(dbg_buff) < count + 1)
 		goto error;
 
-	if (kstrtos32(sptr, 0, &ch_id))
+	if (copy_from_user(dbg_buff, buf, count))
+		goto error;
+
+	dbg_buff[count] = '\0';
+
+	if (kstrtos32(dbg_buff, 0, &ch_id))
 		goto error;
 
 	if (ch_id == -1) {
@@ -357,11 +323,8 @@ static ssize_t gsi_dump_stats(struct file *file,
 	for (ch_id = min; ch_id < max; ch_id++)
 		gsi_dump_ch_stats(&gsi_ctx->chan[ch_id]);
 
-	kfree(sptr);
 	return count;
 error:
-	kfree(sptr);
-print_help:
 	TERR("Usage: echo ch_id > stats. Use -1 for all\n");
 	return -EINVAL;
 }
@@ -393,26 +356,21 @@ static ssize_t gsi_enable_dp_stats(struct file *file,
 	int ch_id;
 	bool enable;
 	int ret;
-	char *sptr;
 
-	if (count < 2)
-		goto print_help;
-
-	sptr = kmalloc((count+1) * sizeof(char), GFP_KERNEL);
-	if (!sptr)
-		return -ENOMEM;
-
-	if (copy_from_user(sptr, buf, count))
+	if (sizeof(dbg_buff) < count + 1)
 		goto error;
 
-	sptr[count] = '\0';
-
-	if (sptr[0] != '+' && sptr[0] != '-')
+	if (copy_from_user(dbg_buff, buf, count))
 		goto error;
 
-	enable = (sptr[0] == '+');
+	dbg_buff[count] = '\0';
 
-	if (kstrtos32(sptr + 1, 0, &ch_id))
+	if (dbg_buff[0] != '+' && dbg_buff[0] != '-')
+		goto error;
+
+	enable = (dbg_buff[0] == '+');
+
+	if (kstrtos32(dbg_buff + 1, 0, &ch_id))
 		goto error;
 
 	if (ch_id < 0 || ch_id >= gsi_ctx->max_ch ||
@@ -422,7 +380,7 @@ static ssize_t gsi_enable_dp_stats(struct file *file,
 
 	if (gsi_ctx->chan[ch_id].enable_dp_stats == enable) {
 		TERR("ch_%d: already enabled/disabled\n", ch_id);
-		goto error;
+		return -EINVAL;
 	}
 	gsi_ctx->chan[ch_id].enable_dp_stats = enable;
 
@@ -444,11 +402,8 @@ static ssize_t gsi_enable_dp_stats(struct file *file,
 		gsi_dbg_destroy_stats_wq();
 	}
 
-	kfree(sptr);
 	return count;
 error:
-	kfree(sptr);
-print_help:
 	TERR("Usage: echo [+-]ch_id > enable_dp_stats\n");
 	return -EINVAL;
 }
@@ -461,18 +416,17 @@ static ssize_t gsi_set_max_elem_dp_stats(struct file *file,
 	unsigned long missing;
 	char *sptr, *token;
 
-	if (count < 1)
-		goto print_help;
 
-	sptr = kmalloc((count+1) * sizeof(char), GFP_KERNEL);
-	if (!sptr)
-		return -ENOMEM;
+	if (sizeof(dbg_buff) < count + 1)
+		goto error;
 
-	missing = copy_from_user(sptr, buf, count);
+	missing = copy_from_user(dbg_buff, buf, count);
 	if (missing)
 		goto error;
 
-	sptr[count] = '\0';
+	dbg_buff[count] = '\0';
+
+	sptr = dbg_buff;
 
 	token = strsep(&sptr, " ");
 	if (!token) {
@@ -488,13 +442,13 @@ static ssize_t gsi_set_max_elem_dp_stats(struct file *file,
 	token = strsep(&sptr, " ");
 	if (!token) {
 		/* get */
-		if (kstrtou32(sptr, 0, &ch_id))
+		if (kstrtou32(dbg_buff, 0, &ch_id))
 			goto error;
 		if (ch_id >= gsi_ctx->max_ch)
 			goto error;
 		PRT_STAT("ch %d: max_re_expected=%d\n", ch_id,
 			gsi_ctx->chan[ch_id].props.max_re_expected);
-		goto end;
+		return count;
 	}
 	if (kstrtou32(token, 0, &max_elem)) {
 		TERR("\n");
@@ -509,13 +463,10 @@ static ssize_t gsi_set_max_elem_dp_stats(struct file *file,
 	}
 
 	gsi_ctx->chan[ch_id].props.max_re_expected = max_elem;
-end:
-	kfree(sptr);
+
 	return count;
 
 error:
-	kfree(sptr);
-print_help:
 	TERR("Usage: (set) echo <ch_id> <max_elem> > max_elem_dp_stats\n");
 	TERR("Usage: (get) echo <ch_id> > max_elem_dp_stats\n");
 	return -EINVAL;
@@ -587,19 +538,16 @@ static ssize_t gsi_rst_stats(struct file *file,
 {
 	int ch_id;
 	int min, max;
-	char *sptr;
 
-	if (count < 1)
-		goto print_help;
-
-	sptr = kmalloc((count+1) * sizeof(char), GFP_KERNEL);
-	if (!sptr)
-		return -ENOMEM;
-
-	if (copy_from_user(sptr, buf, count))
+	if (sizeof(dbg_buff) < count + 1)
 		goto error;
 
-	if (kstrtos32(sptr, 0, &ch_id))
+	if (copy_from_user(dbg_buff, buf, count))
+		goto error;
+
+	dbg_buff[count] = '\0';
+
+	if (kstrtos32(dbg_buff, 0, &ch_id))
 		goto error;
 
 	if (ch_id == -1) {
@@ -616,12 +564,9 @@ static ssize_t gsi_rst_stats(struct file *file,
 	for (ch_id = min; ch_id < max; ch_id++)
 		memset(&gsi_ctx->chan[ch_id].stats, 0,
 			sizeof(gsi_ctx->chan[ch_id].stats));
-	kfree(sptr);
 
 	return count;
 error:
-	kfree(sptr);
-print_help:
 	TERR("Usage: echo ch_id > rst_stats. Use -1 for all\n");
 	return -EINVAL;
 }
@@ -632,27 +577,22 @@ static ssize_t gsi_print_dp_stats(struct file *file,
 	int ch_id;
 	bool enable;
 	int ret;
-	char *sptr;
 
-	if (count < 2)
-		goto print_help;
-
-	sptr = kmalloc((count+1) * sizeof(char), GFP_KERNEL);
-	if (!sptr)
-		return -ENOMEM;
-
-	if (copy_from_user(sptr, buf, count))
+	if (sizeof(dbg_buff) < count + 1)
 		goto error;
 
-	if (sptr[0] != '+' && sptr[0] != '-')
+	if (copy_from_user(dbg_buff, buf, count))
 		goto error;
 
-	enable = (sptr[0] == '+');
+	dbg_buff[count] = '\0';
 
-	if (kstrtos32(sptr + 1, 0, &ch_id)) {
+	if (dbg_buff[0] != '+' && dbg_buff[0] != '-')
 		goto error;
-	}
-	kfree(sptr);
+
+	enable = (dbg_buff[0] == '+');
+
+	if (kstrtos32(dbg_buff + 1, 0, &ch_id))
+		goto error;
 
 	if (ch_id < 0 || ch_id >= gsi_ctx->max_ch ||
 	    !gsi_ctx->chan[ch_id].allocated) {
@@ -685,8 +625,6 @@ static ssize_t gsi_print_dp_stats(struct file *file,
 
 	return count;
 error:
-	kfree(sptr);
-print_help:
 	TERR("Usage: echo [+-]ch_id > print_dp_stats\n");
 	return -EINVAL;
 }
@@ -696,28 +634,17 @@ static ssize_t gsi_enable_ipc_low(struct file *file,
 {
 	unsigned long missing;
 	s8 option = 0;
-	char *sptr;
-	int ret = 0;
 
-	if (count < 1)
+	if (sizeof(dbg_buff) < count + 1)
+		return -EFAULT;
+
+	missing = copy_from_user(dbg_buff, ubuf, count);
+	if (missing)
+		return -EFAULT;
+
+	dbg_buff[count] = '\0';
+	if (kstrtos8(dbg_buff, 0, &option))
 		return -EINVAL;
-
-	sptr = kmalloc((count+1) * sizeof(char), GFP_KERNEL);
-	if (!sptr)
-		return -ENOMEM;
-
-	missing = copy_from_user(sptr, ubuf, count);
-	if (missing) {
-		ret = -EFAULT;
-		goto error;
-	}
-
-	sptr[count] = '\0';
-	if (kstrtos8(sptr, 0, &option)) {
-		ret = -EINVAL;
-		goto error;
-	}
-	kfree(sptr);
 
 	mutex_lock(&gsi_ctx->mlock);
 	if (option) {
@@ -734,9 +661,7 @@ static ssize_t gsi_enable_ipc_low(struct file *file,
 	}
 	mutex_unlock(&gsi_ctx->mlock);
 
-error:
-	kfree(sptr);
-	return ret < 0 ? ret : count;
+	return count;
 }
 
 const struct file_operations gsi_ev_dump_ops = {
