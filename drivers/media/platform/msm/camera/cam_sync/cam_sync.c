@@ -96,7 +96,7 @@ int cam_sync_register_callback(sync_callback cb_func,
 	row = sync_dev->sync_table + sync_obj;
 
 	if (row->state == CAM_SYNC_STATE_INVALID) {
-		CAM_ERR(CAM_SYNC,
+		CAM_DBG(CAM_SYNC,
 			"Error: accessing an uninitialized sync obj %d",
 			sync_obj);
 		spin_unlock_bh(&sync_dev->row_spinlocks[sync_obj]);
