@@ -3529,6 +3529,20 @@ struct sir_peer_sta_ext_info {
 	struct sir_peer_info_ext info[MAX_PEER_STA];
 };
 
+/**
+ * struct sir_isolation_resp - isolation info related structure
+ * @isolation_chain0: isolation value for chain 0
+ * @isolation_chain1: isolation value for chain 1
+ * @isolation_chain2: isolation value for chain 2
+ * @isolation_chain3: isolation value for chain 3
+ */
+struct sir_isolation_resp {
+	uint32_t isolation_chain0:8,
+		 isolation_chain1:8,
+		 isolation_chain2:8,
+		 isolation_chain3:8;
+};
+
 typedef struct sSirAddPeriodicTxPtrn {
 	/* MAC Address for the adapter */
 	struct qdf_mac_addr mac_address;
@@ -5702,6 +5716,8 @@ struct sir_sme_ext_cng_chan_ind {
  * @tsf_high: high 32bits of tsf
  * @soc_timer_low: low 32bits of synced SOC timer value
  * @soc_timer_high: high 32bits of synced SOC timer value
+ * @global_tsf_low: low 32bits of tsf64
+ * @global_tsf_high: high 32bits of tsf64
  *
  * driver use this struct to store the tsf info
  */
@@ -5711,6 +5727,8 @@ struct stsf {
 	uint32_t tsf_high;
 	uint32_t soc_timer_low;
 	uint32_t soc_timer_high;
+	uint32_t global_tsf_low;
+	uint32_t global_tsf_high;
 };
 
 #define SIR_BCN_FLT_MAX_ELEMS_IE_LIST 8

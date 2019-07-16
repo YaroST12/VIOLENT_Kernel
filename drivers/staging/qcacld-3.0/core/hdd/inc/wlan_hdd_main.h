@@ -126,7 +126,7 @@ struct hdd_apf_context {
 #endif /* FEATURE_WLAN_APF */
 
 /** Number of Tx Queues */
-#ifdef QCA_LL_TX_FLOW_CONTROL_V2
+#if defined(QCA_LL_TX_FLOW_CONTROL_V2) || defined(QCA_LL_PDEV_TX_FLOW_CONTROL)
 #define NUM_TX_QUEUES 5
 #else
 #define NUM_TX_QUEUES 4
@@ -248,6 +248,8 @@ enum hdd_driver_flags {
 #define WLAN_WAIT_TIME_APF     1000
 
 #define WLAN_WAIT_TIME_FW_ROAM_STATS 1000
+
+#define WLAN_WAIT_TIME_ANTENNA_ISOLATION 8000
 
 /* Maximum time(ms) to wait for RSO CMD status event */
 #define WAIT_TIME_RSO_CMD_STATUS 2000
@@ -1386,6 +1388,8 @@ struct hdd_adapter {
 	uint64_t cur_target_time;
 	uint64_t cur_tsf_sync_soc_time;
 	uint64_t last_tsf_sync_soc_time;
+	uint64_t cur_target_global_tsf_time;
+	uint64_t last_target_global_tsf_time;
 	qdf_mc_timer_t host_capture_req_timer;
 #ifdef WLAN_FEATURE_TSF_PLUS
 	/* spin lock for read/write timestamps */

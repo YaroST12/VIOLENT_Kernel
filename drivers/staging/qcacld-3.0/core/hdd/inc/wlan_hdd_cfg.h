@@ -299,7 +299,7 @@ enum hdd_dot11_mode {
  * gChannelBondingMode24GHz - Configures Channel Bonding in 24 GHz
  * @Min: 0
  * @Max: 10
- * @Default: 0
+ * @Default: 1
  *
  * This ini is used to set default channel bonding mode 24GHZ
  *
@@ -9988,6 +9988,7 @@ enum dot11p_mode {
 #define CFG_SET_TSF_PTP_OPT_TX                    (0x2)
 #define CFG_SET_TSF_PTP_OPT_RAW                   (0x4)
 #define CFG_SET_TSF_DBG_FS                        (0x8)
+#define CFG_SET_TSF_PTP_OPT_TSF64_TX            (0x10)
 #define CFG_SET_TSF_PTP_OPT_DEFAULT               (0xf)
 #endif
 
@@ -11019,8 +11020,8 @@ enum dot11p_mode {
 /*
  * <ini>
  * 5g_rssi_boost_threshold - A_band_boost_threshold above which 5 GHz is favored.
- * @Min: -55
- * @Max: -70
+ * @Min: -70
+ * @Max: -55
  * @Default: -60
  * This ini is used to set threshold for 5GHz band preference.
  *
@@ -11034,8 +11035,8 @@ enum dot11p_mode {
  * </ini>
  */
 #define CFG_5G_RSSI_BOOST_THRESHOLD_NAME         "5g_rssi_boost_threshold"
-#define CFG_5G_RSSI_BOOST_THRESHOLD_MIN          (-55)
-#define CFG_5G_RSSI_BOOST_THRESHOLD_MAX          (-70)
+#define CFG_5G_RSSI_BOOST_THRESHOLD_MIN          (-70)
+#define CFG_5G_RSSI_BOOST_THRESHOLD_MAX          (-55)
 #define CFG_5G_RSSI_BOOST_THRESHOLD_DEFAULT      (-60)
 
 /*
@@ -11086,8 +11087,8 @@ enum dot11p_mode {
  * <ini>
  * 5g_rssi_penalize_threshold - A_band_penalize_threshold above which
  * 5 GHz is not favored.
- * @Min: -65
- * @Max: -80
+ * @Min: -80
+ * @Max: -65
  * @Default: -70
  * This ini is used to set threshold for 5GHz band preference.
  *
@@ -11101,8 +11102,8 @@ enum dot11p_mode {
  * </ini>
  */
 #define CFG_5G_RSSI_PENALIZE_THRESHOLD_NAME      "5g_rssi_penalize_threshold"
-#define CFG_5G_RSSI_PENALIZE_THRESHOLD_MIN       (-65)
-#define CFG_5G_RSSI_PENALIZE_THRESHOLD_MAX       (-80)
+#define CFG_5G_RSSI_PENALIZE_THRESHOLD_MIN       (-80)
+#define CFG_5G_RSSI_PENALIZE_THRESHOLD_MAX       (-65)
 #define CFG_5G_RSSI_PENALIZE_THRESHOLD_DEFAULT   (-70)
 
 /*
@@ -14455,7 +14456,7 @@ enum hdd_external_acs_policy {
  * enable_esp_for_roam - Enable/disable esp feature
  * @Min: 0
  * @Max: 1
- * @Default: 0
+ * @Default: 1
  *
  * This ini is used to enable/disable ESP(Estimated service parameters) IE
  * parsing and decides whether firmware will include this in its scoring algo.
@@ -17231,7 +17232,7 @@ QDF_STATUS hdd_set_idle_ps_config(struct hdd_context *hdd_ctx, bool val);
 void hdd_get_pmkid_modes(struct hdd_context *hdd_ctx,
 			 struct pmkid_mode_bits *pmkid_modes);
 
-void hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg);
+int hdd_update_tgt_cfg(hdd_handle_t hdd_handle, struct wma_tgt_cfg *cfg);
 
 /**
  * hdd_string_to_u8_array() - used to convert decimal string into u8 array
